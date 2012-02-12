@@ -57,24 +57,33 @@ def encode(opts):
     inaudio = wave.open(file1, 'rb')
     bytes = bytearray(tohide)
     prbytes = [b ^ random.getrandbits(8) for b in bytes]
-    print "bytes"
-    for b in bytes: print b
-    print "prbytes"
-    print prbytes
     outaudio = wave.open(file3, 'wb')
     outaudio.setparams(inaudio.getparams())
     totalframes = inaudio.getnframes()
 
+    byteloc = 0
+
     while inaudio.tell()<totalframes:
         print "%s / %s" % (inaudio.tell(), totalframes)
         frames = bytearray(inaudio.readframes(NFRAMES))
-        freqs = fft(frames)
-        towrite = bytearray(ifft(freqs).round().astype(int).tolist())
-        outaudio.writeframes(towrite)
+        if byteloc < len(prbytes):
+            freqs = fft(frames)
+            writebytes = prbytes[byteloc:byteloc+32]
+            byteloc += 32
+            freqs = modulate(freqs, writebytes, 64, len(prbytes))
+            l = ifft(freqs).round().clip(0,255).astype(int).tolist()
+            frames = bytearray(l)
+        outaudio.writeframes(frames)
 
     outaudio.close()
     inaudio.close()
-    
+
+def modulate(freqs, new, start, end):
+    j = 0
+    for i in range(start, 1 + (end if end < len(new) else len(new)), 2):
+        j = (j + 1) % len(new)
+        freqs[i] = freqs[i] + new[j]
+    return freqs.clip(-32767, 32767)
 
 def decode(opts):
     print "decoding, woo"
