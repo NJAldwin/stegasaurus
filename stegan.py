@@ -14,7 +14,7 @@ ENCODE = "encode"
 WAV = "wav"
 RATE = 44100
 SEED = "our cool awesome seed"
-NFRAMES = 16
+NFRAMES = 32
 
 def usage():
     print "usage"
@@ -68,7 +68,8 @@ def encode(opts):
     while inaudio.tell()<totalframes:
         print "%s / %s" % (inaudio.tell(), totalframes)
         frames = bytearray(inaudio.readframes(NFRAMES))
-        towrite = frames
+        freqs = fft(frames)
+        towrite = bytearray(ifft(freqs).round().astype(int).tolist())
         outaudio.writeframes(towrite)
 
     outaudio.close()
