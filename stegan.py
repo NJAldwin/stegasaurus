@@ -70,7 +70,7 @@ def encode(opts):
             freqs = fft(frames)
             writebytes = prbytes[byteloc:byteloc+32]
             byteloc += 32
-            freqs = modulate(freqs, writebytes, 64, len(prbytes))
+            freqs = modulate(freqs, writebytes, 62)
             l = ifft(freqs).round().clip(0,255).astype(int).tolist()
             frames = bytearray(l)
         outaudio.writeframes(frames)
@@ -78,9 +78,10 @@ def encode(opts):
     outaudio.close()
     inaudio.close()
 
-def modulate(freqs, new, start, end):
+def modulate(freqs, new, start):
     j = 0
-    for i in range(start, 1 + (end if end < len(new) else len(new)), 2):
+    end = start + 2*len(new)
+    for i in range(start, 1 + (end if end < len(freqs) else len(freqs)), 2):
         j = (j + 1) % len(new)
         freqs[i] = freqs[i] + new[j]
     return freqs.clip(-32767, 32767)
