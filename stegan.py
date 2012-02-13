@@ -90,9 +90,34 @@ def decode(opts):
     print "decoding, woo"
     file4 = opts[0]
     file5 = opts[1]
-    #debytes = [b ^ random.getrandbits(8) for b in prbytes]
+    inaudio = wave.open(file4, 'rb')
+    outmsg = open(file5, 'wb')
+    bytes = []
+    totalframes = inaudio.getnframes()
+
+    byteloc = 0
+
+    while inaudio.tell()<totalframes:
+        print "%s / %s" % (inaudio.tell(), totalframes)
+        frames = bytearray(inaudio.readframes(NFRAMES))
+        freqs = fft(frames)
+        bytes += demodulate(freqs, 62, 32)
+
+    inaudio.close()
+    debytes = [b ^ random.getrandbits(8) for b in bytes]
+    outmsg.write(bytearray(debytes))
+    outmsg.close()
     #print "debytes"
     #print debytes
+
+def demodulate(freqs, start, blen):
+    j = 0
+    ret = []
+    end = start + 2*blen
+    for i in range(start, 1 + end, 2):
+        j = (j + 1) % blen
+        ret.append(65)
+    return ret
 
 def checkformat(filename, expectedtype, expectedrate):
     if not os.path.isfile(filename):
