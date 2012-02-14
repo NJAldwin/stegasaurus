@@ -1,3 +1,4 @@
+# coding=utf-8
 import sndhdr
 import wave
 import mimetypes
@@ -16,10 +17,15 @@ WAV = "wav"
 RATE = 44100
 SEED = "our cool awesome seed"
 FRAMEDIST = 7
-NFRAMES = 32
 
 def usage():
-    print "usage"
+    print "./stegan --encode file1 file2 file3"
+    print "./stegan --decode file4 file5"
+    print "file1 → is input audio file, the carrier"
+    print "file2 → is input message file"
+    print "file3 → is output audio file"
+    print "file4 → is input audio with steganography; i.e., file3"
+    print "file5 → is output message file"
 
 def main():
     try:
@@ -62,8 +68,6 @@ def encode(opts):
     outaudio = wave.open(file3, 'wb')
     outaudio.setparams(inaudio.getparams())
     totalframes = inaudio.getnframes()
-
-    byteloc = 0
 
     end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
     dist = (totalframes / end) - 1
