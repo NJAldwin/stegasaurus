@@ -66,6 +66,7 @@ def encode(opts):
     byteloc = 0
 
     end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
+    dist = (totalframes / end) - 1
     frame = unpack("<hh", inaudio.readframes(1))
     outframe = pack("<hh", end, frame[1])
     outaudio.writeframes(outframe)
@@ -73,7 +74,7 @@ def encode(opts):
         frame = unpack("<hh", inaudio.readframes(1))
         outframe = pack("<hh", prbytes[i], frame[1])
         outaudio.writeframes(outframe)
-        frames = bytearray(inaudio.readframes(128))
+        frames = bytearray(inaudio.readframes(dist))
         outaudio.writeframes(frames)
 
     frames = bytearray(inaudio.readframes(totalframes))
@@ -95,10 +96,11 @@ def decode(opts):
 
     frame = unpack("<hh",inaudio.readframes(1))
     end = frame[0]
+    dist = (totalframes / end) - 1
     while inaudio.tell()<totalframes and len(bytes) <= end:
         frame = unpack("<hh",inaudio.readframes(1))
         bytes.append(max(0, min(255, frame[0])))
-        frames = bytearray(inaudio.readframes(128))
+        frames = bytearray(inaudio.readframes(dist))
 
     inaudio.close()
     debytes = [b ^ random.getrandbits(8) for b in bytes]
