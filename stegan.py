@@ -7,6 +7,7 @@ import os
 import numpy
 from numpy.fft import fft, ifft
 from numpy import array
+from struct import unpack, pack
 import random
 
 DECODE = "decode"
@@ -14,6 +15,7 @@ ENCODE = "encode"
 WAV = "wav"
 RATE = 44100
 SEED = "our cool awesome seed"
+FRAMEDIST = 7
 NFRAMES = 32
 
 def usage():
@@ -63,28 +65,23 @@ def encode(opts):
 
     byteloc = 0
 
+    end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
+    for i in range(end):
+        frame = unpack("<hh", inaudio.readframes(1))
+        freqs = fft(frame)
+        freqs[0] = prbytes[i]
+        l = ifft(freqs)
+        outframe = pack("<hh", l[0], l[1])
+        outaudio.writeframes(outframe)
+        frames = bytearray(inaudio.readframes(128))
+        outaudio.writeframes(frames)
+
     while inaudio.tell()<totalframes:
-        print "%s / %s" % (inaudio.tell(), totalframes)
         frames = bytearray(inaudio.readframes(NFRAMES))
-        if byteloc < len(prbytes):
-            freqs = fft(frames)
-            writebytes = prbytes[byteloc:byteloc+32]
-            byteloc += 32
-            freqs = modulate(freqs, writebytes, 62)
-            l = ifft(freqs).round().clip(0,255).astype(int).tolist()
-            frames = bytearray(l)
         outaudio.writeframes(frames)
 
     outaudio.close()
     inaudio.close()
-
-def modulate(freqs, new, start):
-    j = 0
-    end = start + 2*len(new)
-    for i in range(start, 1 + (end if end < len(freqs) else len(freqs)), 2):
-        j = (j + 1) % len(new)
-        freqs[i] = freqs[i] + new[j]
-    return freqs.clip(-32767, 32767)
 
 def decode(opts):
     print "decoding, woo"
@@ -97,27 +94,17 @@ def decode(opts):
 
     byteloc = 0
 
+    
     while inaudio.tell()<totalframes:
-        print "%s / %s" % (inaudio.tell(), totalframes)
-        frames = bytearray(inaudio.readframes(NFRAMES))
-        freqs = fft(frames)
-        bytes += demodulate(freqs, 62, 32)
+        frame = unpack("<hh",inaudio.readframes(1))
+        freqs = fft(frame)
+        bytes.append(freqs[0].clip(0,255).astype(int))
+        frames = bytearray(inaudio.readframes(128))
 
     inaudio.close()
     debytes = [b ^ random.getrandbits(8) for b in bytes]
     outmsg.write(bytearray(debytes))
     outmsg.close()
-    #print "debytes"
-    #print debytes
-
-def demodulate(freqs, start, blen):
-    j = 0
-    ret = []
-    end = start + 2*blen
-    for i in range(start, 1 + end, 2):
-        j = (j + 1) % blen
-        ret.append(65)
-    return ret
 
 def checkformat(filename, expectedtype, expectedrate):
     if not os.path.isfile(filename):
