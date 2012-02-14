@@ -66,12 +66,12 @@ def encode(opts):
     byteloc = 0
 
     end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
+    frame = unpack("<hh", inaudio.readframes(1))
+    outframe = pack("<hh", end, frame[1])
+    outaudio.writeframes(outframe)
     for i in range(end):
         frame = unpack("<hh", inaudio.readframes(1))
-        freqs = fft(frame)
-        freqs[0] = prbytes[i]
-        l = ifft(freqs)
-        outframe = pack("<hh", l[0], l[1])
+        outframe = pack("<hh", prbytes[i], frame[1])
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(128))
         outaudio.writeframes(frames)
@@ -94,11 +94,11 @@ def decode(opts):
 
     byteloc = 0
 
-    
-    while inaudio.tell()<totalframes:
+    frame = unpack("<hh",inaudio.readframes(1))
+    end = frame[0]
+    while inaudio.tell()<totalframes and len(bytes) <= end:
         frame = unpack("<hh",inaudio.readframes(1))
-        freqs = fft(frame)
-        bytes.append(freqs[0].clip(0,255).astype(int))
+        bytes.append(max(0, min(255, frame[0])))
         frames = bytearray(inaudio.readframes(128))
 
     inaudio.close()
