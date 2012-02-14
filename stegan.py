@@ -76,9 +76,8 @@ def encode(opts):
         frames = bytearray(inaudio.readframes(128))
         outaudio.writeframes(frames)
 
-    while inaudio.tell()<totalframes:
-        frames = bytearray(inaudio.readframes(NFRAMES))
-        outaudio.writeframes(frames)
+    frames = bytearray(inaudio.readframes(totalframes))
+    outaudio.writeframes(frames)
 
     outaudio.close()
     inaudio.close()
