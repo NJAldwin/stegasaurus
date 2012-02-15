@@ -18,6 +18,8 @@ WAV = "wav"
 RATE = 44100
 SEED = "our cool awesome seed"
 FRAMEDIST = 7
+LOW_MASK = 0x0000FFFF
+HIGH_MASK = 0xFFFF0000
 
 def usage():
     print "./stegan --encode file1 file2 file3"
@@ -61,7 +63,6 @@ def encode(opts):
     if not os.path.isfile(file2):
         usage()
         exit()
-    # todo: RIFX STUFF
     tohide = open(file2, 'rb').read()
     inaudio = wave.open(file1, 'rb')
     bytes = bytearray(tohide)
@@ -70,12 +71,22 @@ def encode(opts):
     outaudio.setparams(inaudio.getparams())
     totalframes = inaudio.getnframes()
 
+
+    # note: use fft later for mp3 compatibility
     end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
     dist = (totalframes / end) - 1
-    frame = unpack("<hh", inaudio.readframes(1))
-    outframe = pack("<hh", end, frame[1])
+    endlo = end & LOW_MASK
+    endhi = (end & HIGH_MASK) >> 16
+    # skip frame for marking length
+    inaudio.readframes(1)
+    # < : little-endian
+    # h : short
+    # H : unsigned short
+    # using only left channel
+    outframe = pack("<HH", endlo, endhi)
     outaudio.writeframes(outframe)
     for i in range(end):
+        outr = prbytes[i]
         frame = unpack("<hh", inaudio.readframes(1))
         outframe = pack("<hh", prbytes[i], frame[1])
         outaudio.writeframes(outframe)
@@ -97,15 +108,14 @@ def decode(opts):
     bytes = []
     totalframes = inaudio.getnframes()
 
-    byteloc = 0
-
-    frame = unpack("<hh",inaudio.readframes(1))
-    end = frame[0]
+    frame = unpack("<HH",inaudio.readframes(1))
+    end = frame[0] | (frame[1] << 16)
     dist = (totalframes / end) - 1
-    while inaudio.tell()<totalframes and len(bytes) <= end:
+    while inaudio.tell()<totalframes and len(bytes) < end:
         frame = unpack("<hh",inaudio.readframes(1))
         bytes.append(max(0, min(255, frame[0])))
-        frames = bytearray(inaudio.readframes(dist))
+        # skip frames
+        inaudio.readframes(dist)
 
     inaudio.close()
     debytes = [b ^ random.getrandbits(8) for b in bytes]
