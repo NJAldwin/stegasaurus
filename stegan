@@ -30,7 +30,7 @@ UNIQUE_LEFT = -42
 UNIQUE_RIGHT = 42
 
 def usage():
-""" Prints program usage and exits """
+    """ Prints program usage and exits """
     print """./stegan --encode file1 file2 file3
 ./stegan --decode file4 file5
 file1 → is input audio file, the carrier
@@ -41,7 +41,7 @@ file5 → is output message file"""
     exit()
 
 def main():
-""" Main operations """
+    """ Main operations """
     try:
         mode, opts = getopt.getopt(sys.argv[1:],"",[DECODE,ENCODE])
     except:
@@ -61,7 +61,7 @@ def main():
         decode(opts)
 
 def encode(opts):
-""" Encodes data into a file """
+    """ Encodes data into a file """
     file1 = opts[0]
     file2 = opts[1]
     file3 = opts[2]
@@ -105,7 +105,7 @@ def encode(opts):
     inaudio.close()
 
 def decode(opts):
-""" Decode data from a file """
+    """ Decode data from a file """
     file4 = opts[0]
     file5 = opts[1]
     inaudio = wave.open(file4, 'rb')
@@ -137,7 +137,7 @@ def decode(opts):
     outmsg.close()
 
 def checkformat(filename, expectedtype, expectedrate):
-""" Check that the file is in the expected format """
+    """ Check that the file is in the expected format """
     if not os.path.isfile(filename):
         return False
     what = sndhdr.what(filename)
