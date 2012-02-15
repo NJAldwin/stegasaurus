@@ -1,25 +1,23 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Stegasaurus
-###############
-# aldwin
-# asm
-# emzee
-# gkatsev
+# Group:    Stegasaurus
+# Version:  0.01
+# Date:     2012-2-17
 
-import sndhdr
-import wave
-import mimetypes
-import getopt
-import sys
-import os
-import numpy
-from numpy.fft import fft, ifft
-from numpy import array
+# ==== Group Members ====
+#  - Nick Aldwin <aldwin@ccs.neu.edu>
+#  - Gary Katsevman <gkatsev@css.neu.edu>
+#  - Alex Metzger <asm@ccs.neu.edu>
+#  - Melissa Xie <emzee@ccs.neu.edu>
+
+# ==== Usage ====
+# see README
+
+import sndhdr, wave, mimetypes, getopt, sys, os, random
 from struct import unpack, pack
-import random
 
+# Constants
 DECODE = "decode"
 ENCODE = "encode"
 WAV = "wav"
@@ -28,35 +26,34 @@ SEED = "our cool awesome seed"
 FRAMEDIST = 7
 LOW_MASK = 0x0000FFFF
 HIGH_MASK = 0xFFFF0000
+UNIQUE_LEFT = -42
+UNIQUE_RIGHT = 42
 
 def usage():
-    print "./stegan --encode file1 file2 file3"
-    print "./stegan --decode file4 file5"
-    print "file1 → is input audio file, the carrier"
-    print "file2 → is input message file"
-    print "file3 → is output audio file"
-    print "file4 → is input audio with steganography; i.e., file3"
-    print "file5 → is output message file"
+""" Prints program usage and exits """
+    print """./stegan --encode file1 file2 file3
+./stegan --decode file4 file5
+file1 → is input audio file, the carrier
+file2 → is input message file
+file3 → is output audio file
+file4 → is input audio with steganography; i.e., file3
+file5 → is output message file"""
+    exit()
 
 def main():
+""" Main operations """
     try:
         mode, opts = getopt.getopt(sys.argv[1:],"",[DECODE,ENCODE])
     except:
         usage()
-        exit()
     if len(mode)<1:
         usage()
-        exit()
     mode = mode[0][0].strip('-')
-    print mode
     nargs = 3 if mode == ENCODE else 2
     if len(opts)<nargs:
         usage()
-        exit()
-    print opts
     if not checkformat(opts[0], WAV, RATE):
         usage()
-        exit()
     random.seed(SEED)
     if mode == ENCODE:
         encode(opts)
@@ -64,13 +61,12 @@ def main():
         decode(opts)
 
 def encode(opts):
-    print "encoding, woo"
+""" Encodes data into a file """
     file1 = opts[0]
     file2 = opts[1]
     file3 = opts[2]
     if not os.path.isfile(file2):
         usage()
-        exit()
     tohide = open(file2, 'rb').read()
     inaudio = wave.open(file1, 'rb')
     bytes = bytearray(tohide)
@@ -79,24 +75,24 @@ def encode(opts):
     outaudio.setparams(inaudio.getparams())
     totalframes = inaudio.getnframes()
 
-
     # note: use fft later for mp3 compatibility
     end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
-    dist = (totalframes / end) - 1
+    dist = (totalframes / end) - 2
     endlo = end & LOW_MASK
     endhi = (end & HIGH_MASK) >> 16
-    # skip frame for marking length
-    inaudio.readframes(1)
+    # skip frames for unique marking & length
+    inaudio.readframes(2)
     # < : little-endian
     # h : short
     # H : unsigned short
-    # using only left channel
-    outframe = pack("<HH", endlo, endhi)
+    # unique marking & length
+    outframe = pack("<hhHH", UNIQUE_LEFT, UNIQUE_RIGHT, endlo, endhi)
     outaudio.writeframes(outframe)
     for i in range(end):
         outr = prbytes[i]
         frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0
+        # alternate channels
         outframe = pack("<hh", prbytes[i] if side else frame[0], frame[1] if side else prbytes[i])
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(dist))
@@ -109,7 +105,7 @@ def encode(opts):
     inaudio.close()
 
 def decode(opts):
-    print "decoding, woo"
+""" Decode data from a file """
     file4 = opts[0]
     file5 = opts[1]
     inaudio = wave.open(file4, 'rb')
@@ -117,9 +113,15 @@ def decode(opts):
     bytes = []
     totalframes = inaudio.getnframes()
 
+    # check unique
+    check = unpack("<hh",inaudio.readframes(1))
+    if not check[0]==UNIQUE_LEFT and not check[1]==UNIQUE_RIGHT and not check[0]+check[1]==0:
+        print >>sys.stderr,"No steganographic payload found."
+        outmsg.close()
+        usage()
     frame = unpack("<HH",inaudio.readframes(1))
     end = frame[0] | (frame[1] << 16)
-    dist = (totalframes / end) - 1
+    dist = (totalframes / end) - 2
     i=0
     while inaudio.tell()<totalframes and len(bytes) < end:
         frame = unpack("<hh",inaudio.readframes(1))
@@ -135,6 +137,7 @@ def decode(opts):
     outmsg.close()
 
 def checkformat(filename, expectedtype, expectedrate):
+""" Check that the file is in the expected format """
     if not os.path.isfile(filename):
         return False
     what = sndhdr.what(filename)
