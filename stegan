@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 # coding=utf-8
+
+# Stegasaurus
+###############
+# aldwin
+# asm
+# emzee
+# gkatsev
+
 import sndhdr
 import wave
 import mimetypes
@@ -88,7 +96,8 @@ def encode(opts):
     for i in range(end):
         outr = prbytes[i]
         frame = unpack("<hh", inaudio.readframes(1))
-        outframe = pack("<hh", prbytes[i], frame[1])
+        side = (i % 2) == 0
+        outframe = pack("<hh", prbytes[i] if side else frame[0], frame[1] if side else prbytes[i])
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(dist))
         outaudio.writeframes(frames)
@@ -111,9 +120,12 @@ def decode(opts):
     frame = unpack("<HH",inaudio.readframes(1))
     end = frame[0] | (frame[1] << 16)
     dist = (totalframes / end) - 1
+    i=0
     while inaudio.tell()<totalframes and len(bytes) < end:
         frame = unpack("<hh",inaudio.readframes(1))
-        bytes.append(max(0, min(255, frame[0])))
+        side = (i % 2) == 0
+        i += 1
+        bytes.append(max(0, min(255, frame[0 if side else 1])))
         # skip frames
         inaudio.readframes(dist)
 
