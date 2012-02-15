@@ -1,0 +1,27 @@
+Group:    Stegasaurus
+Version:  0.01
+Date:     2012-2-17
+
+==== Group Members ====
+ - Nick Aldwin <aldwin@ccs.neu.edu>
+ - Gary Katsevman <gkatsev@css.neu.edu>
+ - Alex Metzger <asm@ccs.neu.edu>
+ - Melissa Xie <emzee@ccs.neu.edu>
+
+==== Usage ====
+The program ships in an operational state, to run it one must simply unpack the archive
+    tar xvzf <filename>.tar.gz
+and change directories into the resulting folder. Then, run
+    ./stegan --encode <carrier> <message> <output>
+Where <carrier> is the filename of the WAV file you'd like to encode into, <message> is the file you'd like to encode into the carrier file, and <output> is the file you'd like the program to output the new encoded file to. This will encode a message. To go the opposite direction, run
+    ./stegan <decode> <extraction>
+where <decode> is the file that should have the message encoded in it and <extraction> is the desired filename for the decoded message itself.
+
+
+==== Notes ====
+ - At the moment our software only works with WAV files
+ - Our software relies on the Python standard library and the NumPy scientific computing suite
+
+==== Changelog ====
+2012-02-17: Rapid prototype for Assignment 1
+
