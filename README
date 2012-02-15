@@ -14,9 +14,8 @@ The program ships in an operational state, to run it one must simply unpack the 
 and change directories into the resulting folder. Then, run
     ./stegan --encode <carrier> <message> <output>
 Where <carrier> is the filename of the WAV file you'd like to encode into, <message> is the file you'd like to encode into the carrier file, and <output> is the file you'd like the program to output the new encoded file to. This will encode a message. To go the opposite direction, run
-    ./stegan <decode> <extraction>
+    ./stegan --decode <decode> <extraction>
 where <decode> is the file that should have the message encoded in it and <extraction> is the desired filename for the decoded message itself.
-
 
 ==== Notes ====
  - At the moment our software only works with WAV files
