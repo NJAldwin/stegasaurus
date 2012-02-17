@@ -22,6 +22,7 @@ DECODE = "decode"
 ENCODE = "encode"
 WAV = "wav"
 RATE = 44100
+SEED = "our cool awesome seed"
 FRAMEDIST = 7
 LOW_MASK = 0x0000FFFF
 HIGH_MASK = 0xFFFF0000
@@ -59,6 +60,7 @@ def main():
     if not checkformat(opts[0], WAV, RATE):
         usage()
 
+    random.seed(SEED)   # seeds the random generator
     if mode == ENCODE:
         encode(opts)
     else:
