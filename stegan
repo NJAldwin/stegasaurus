@@ -22,7 +22,6 @@ DECODE = "decode"
 ENCODE = "encode"
 WAV = "wav"
 RATE = 44100
-SEED = "our cool awesome seed"
 FRAMEDIST = 7
 LOW_MASK = 0x0000FFFF
 HIGH_MASK = 0xFFFF0000
@@ -46,15 +45,20 @@ def main():
         mode, opts = getopt.getopt(sys.argv[1:],"",[DECODE,ENCODE])
     except:
         usage()
-    if len(mode)<1:
+
+    if len(mode) < 1:
         usage()
+
+    # get the mode the user indicated
     mode = mode[0][0].strip('-')
     nargs = 3 if mode == ENCODE else 2
-    if len(opts)<nargs:
+
+    # check for appropriate number of arguments
+    if len(opts) < nargs:
         usage()
     if not checkformat(opts[0], WAV, RATE):
         usage()
-    random.seed(SEED)
+
     if mode == ENCODE:
         encode(opts)
     else:
@@ -62,38 +66,46 @@ def main():
 
 def encode(opts):
     """ Encodes data into a file """
-    file1 = opts[0]
-    file2 = opts[1]
-    file3 = opts[2]
+    file1, file2, file3  = opts
+
     if not os.path.isfile(file2):
         usage()
+
+    # opens up the payload file and generate random bits
     tohide = open(file2, 'rb').read()
-    inaudio = wave.open(file1, 'rb')
     bytes = bytearray(tohide)
     prbytes = [b ^ random.getrandbits(8) for b in bytes]
+
+    # copying the input audio's properties over to the output
+    inaudio = wave.open(file1, 'rb')
     outaudio = wave.open(file3, 'wb')
     outaudio.setparams(inaudio.getparams())
-    totalframes = inaudio.getnframes()
 
     # note: use fft later for mp3 compatibility
-    end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7) 
-    dist = (totalframes / end) - 2
+    totalframes = inaudio.getnframes()
+    end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/7)
     endlo = end & LOW_MASK
     endhi = (end & HIGH_MASK) >> 16
+
     # skip frames for unique marking & length
     inaudio.readframes(2)
+
     # < : little-endian
     # h : short
     # H : unsigned short
     # unique marking & length
     outframe = pack("<hhHH", UNIQUE_LEFT, UNIQUE_RIGHT, endlo, endhi)
     outaudio.writeframes(outframe)
+
+    dist = (totalframes / end) - 2
     for i in range(end):
         outr = prbytes[i]
         frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0
         # alternate channels
-        outframe = pack("<hh", prbytes[i] if side else frame[0], frame[1] if side else prbytes[i])
+        left = prbytes[i] if side else frame[0]
+        right = frame[1] if side else prbytes[i]
+        outframe = pack("<hh", left, right)
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(dist))
         outaudio.writeframes(frames)
@@ -106,30 +118,29 @@ def encode(opts):
 
 def decode(opts):
     """ Decode data from a file """
-    file4 = opts[0]
-    file5 = opts[1]
+    file4, file5 = opts
     inaudio = wave.open(file4, 'rb')
     outmsg = open(file5, 'wb')
-    bytes = []
-    totalframes = inaudio.getnframes()
 
     # check unique
-    check = unpack("<hh",inaudio.readframes(1))
-    if not check[0]==UNIQUE_LEFT and not check[1]==UNIQUE_RIGHT and not check[0]+check[1]==0:
-        print >>sys.stderr,"No steganographic payload found."
+    check = unpack("<hh", inaudio.readframes(1))
+    if not check[0]==UNIQUE_LEFT or check[1]==UNIQUE_RIGHT or check[0]+check[1]==0:
+        print >>sys.stderr, "No steganographic payload found."
         outmsg.close()
         usage()
-    frame = unpack("<HH",inaudio.readframes(1))
+
+    frame = unpack("<HH", inaudio.readframes(1))
     end = frame[0] | (frame[1] << 16)
+    totalframes = inaudio.getnframes()
     dist = (totalframes / end) - 2
+    bytes = []
     i=0
-    while inaudio.tell()<totalframes and len(bytes) < end:
-        frame = unpack("<hh",inaudio.readframes(1))
+    while inaudio.tell() < totalframes and len(bytes) < end:
+        frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0
-        i += 1
         bytes.append(max(0, min(255, frame[0 if side else 1])))
-        # skip frames
-        inaudio.readframes(dist)
+        inaudio.readframes(dist)        # skip frames
+        i += 1
 
     inaudio.close()
     debytes = [b ^ random.getrandbits(8) for b in bytes]
@@ -140,11 +151,13 @@ def checkformat(filename, expectedtype, expectedrate):
     """ Check that the file is in the expected format """
     if not os.path.isfile(filename):
         return False
-    what = sndhdr.what(filename)
+
+    header = sndhdr.what(filename)
     # later: mp3 checking
-    if what == None:
+    if header == None:
         return False
-    ftype, rate, channels, frames, bps = what
+
+    ftype, rate, channels, frames, bps = header
     return ftype==expectedtype and rate==expectedrate
 
 if __name__ == '__main__':
