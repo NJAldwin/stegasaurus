@@ -9,18 +9,16 @@ Date:     2012-2-17
  - Melissa Xie <emzee@ccs.neu.edu>
 
 ==== Usage ====
-The program ships in an operational state, to run it one must simply unpack the archive
-    tar xvzf <filename>.tar.gz
-and change directories into the resulting folder. Then, run
+Since it is written in python, all that is needed to make sure the program is runnable is to ensure that the file "stegan" in the project directory is executable (execute "chmod +x stegan" if not). Then, to encode, run
     ./stegan --encode <carrier> <message> <output>
-Where <carrier> is the filename of the WAV file you'd like to encode into, <message> is the file you'd like to encode into the carrier file, and <output> is the file you'd like the program to output the new encoded file to. This will encode a message. To go the opposite direction, run
+Where <carrier> is the filename of the WAV file you'd like to encode into, <message> is the file you'd like to encode into the carrier file, and <output> is the file you'd like the program to output the new encoded file to. To decode, run
     ./stegan --decode <decode> <extraction>
 where <decode> is the file that should have the message encoded in it and <extraction> is the desired filename for the decoded message itself.
 
 ==== Notes ====
- - At the moment our software only works with WAV files
- - Our software relies on the Python standard library and the NumPy scientific computing suite
+ - At the moment our software only works with WAV files (MP3 support will be included in future versions of the software)
+ - Our software relies on the Python standard library (in the future, it will also depend on the NumPy scientific computing suite)
 
 ==== Changelog ====
-2012-02-17: Rapid prototype for Assignment 1
+2012-02-17: Rapid prototype for Assignment 1 (Version 0.01)
 
