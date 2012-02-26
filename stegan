@@ -16,6 +16,8 @@
 
 import sndhdr, wave, mimetypes, getopt, sys, os, random
 from struct import unpack, pack
+from numpy.fft import fft, ifft
+from numpy import int16
 
 # Constants
 DECODE = "decode"
@@ -69,7 +71,15 @@ def main():
     else:
         decode(opts) # calls decode on the arguments provided
 
-def encode(opts):
+def testbit(int,offset):
+    mask = 1 << offset
+    return (int & mask)
+
+def setbit(int,offset):
+    mask = 1 << offset
+    return (int | mask)
+
+def encode(opts):M
     """ Encodes data into a file """
     file1, file2, file3  = opts # pull the individual values out of the opts tuple
 
@@ -79,7 +89,11 @@ def encode(opts):
     # opens up the payload file and generate random bits
     tohide = open(file2, 'rb').read()
     bytes = bytearray(tohide)
-    prbytes = [b ^ random.getrandbits(8) for b in bytes]
+    bits = []
+    for b in bytes:
+        for i in range(8):
+            bits.append(min(testbit(b,i), 1))
+    prbits = [b ^ random.getrandbits(1) for b in bits]
 
     # copying the input audio's properties over to the output
     inaudio = wave.open(file1, 'rb')
@@ -89,9 +103,9 @@ def encode(opts):
     # note: use fft later for mp3 compatibility
     # Find the total number of frames in the input file
     totalframes = inaudio.getnframes()
-    # The end of the file occurs at the end of the prbytes array if it is shorter than the 
+    # The end of the file occurs at the end of the prbits array if it is shorter than the 
     # length of the original file. Otherwise, it is at the end of the original file.
-    end = len(prbytes) if len(prbytes) * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
+    end = len(prbits) if len(prbits) * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
     # Separate the end of the file into the upper and lower 16 bits.
     endlo = end & LOW_MASK
     endhi = (end & HIGH_MASK) >> 16
@@ -115,8 +129,8 @@ def encode(opts):
     for i in range(end):
         frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0 # alternate channels
-        left = prbytes[i] if side else frame[0]
-        right = frame[1] if side else prbytes[i]
+        left = prbits[i] if side else frame[0]
+        right = frame[1] if side else prbits[i]
         outframe = pack("<hh", left, right)
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(dist))
@@ -142,20 +156,28 @@ def decode(opts):
         usage()
 
     frame = unpack("<HH", inaudio.readframes(1))
-    end = frame[0] | (frame[1] << 16)
     totalframes = inaudio.getnframes()
+    end = frame[0] | (frame[1] << 16)
     dist = (totalframes / end) - 2
-    bytes = []
+    bits = []
     i=0
-    while inaudio.tell() < totalframes and len(bytes) < end:
+    while inaudio.tell() < totalframes and len(bits) < end:
         frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0
-        bytes.append(max(0, min(255, frame[0 if side else 1])))
+        bits.append(max(0, min(255, frame[0 if side else 1])))
         inaudio.readframes(dist)        # skip frames
         i += 1
-
     inaudio.close()
-    debytes = [b ^ random.getrandbits(8) for b in bytes]
+
+    debits = [b ^ random.getrandbits(1) for b in bits]
+    debytes = []
+    for i in range(0,len(debits),8):
+        byte = 0
+        for j in range(8):
+            if (debits[i+j] == 1):
+                byte = setbit(byte, j)
+        debytes.append(byte)
+
     outmsg.write(bytearray(debytes))
     outmsg.close()
 
