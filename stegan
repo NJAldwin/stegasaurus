@@ -79,7 +79,7 @@ def setbit(int,offset):
     mask = 1 << offset
     return (int | mask)
 
-def encode(opts):M
+def encode(opts):
     """ Encodes data into a file """
     file1, file2, file3  = opts # pull the individual values out of the opts tuple
 
