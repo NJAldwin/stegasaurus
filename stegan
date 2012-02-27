@@ -128,10 +128,13 @@ def encode(opts):
     # For each frame to the end of the file
     for i in range(end):
         frame = unpack("<hh", inaudio.readframes(1))
+	freqs = fft(frame)
         side = (i % 2) == 0 # alternate channels
-        left = prbits[i] if side else frame[0]
-        right = frame[1] if side else prbits[i]
-        outframe = pack("<hh", left, right)
+        freqs[0] = prbits[i] if side else freqs[0]
+        freqs[1] = freqs[1] if side else prbits[i]
+	newframes = ifft(freqs)
+	#print "%s:%s:%s" % (frame,prbits[i], newframes)
+        outframe = pack("<hh", newframes[0], newframes[1])
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(dist))
         outaudio.writeframes(frames)
@@ -164,7 +167,8 @@ def decode(opts):
     while inaudio.tell() < totalframes and len(bits) < end:
         frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0
-        bits.append(max(0, min(255, frame[0 if side else 1])))
+	freqs = fft(frame)
+        bits.append(freqs[0 if side else 1].astype(int16))
         inaudio.readframes(dist)        # skip frames
         i += 1
     inaudio.close()
