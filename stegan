@@ -18,6 +18,7 @@ import sndhdr, wave, mimetypes, getopt, sys, os, random
 from struct import unpack, pack
 from numpy.fft import fft, ifft
 from numpy import int16
+from bits import testbit, setbit
 
 # Constants
 DECODE = "decode"
@@ -71,14 +72,6 @@ def main():
     else:
         decode(opts) # calls decode on the arguments provided
 
-def testbit(int,offset):
-    mask = 1 << offset
-    return (int & mask)
-
-def setbit(int,offset):
-    mask = 1 << offset
-    return (int | mask)
-
 def encode(opts):
     """ Encodes data into a file """
     file1, file2, file3  = opts # pull the individual values out of the opts tuple
@@ -92,7 +85,7 @@ def encode(opts):
     bits = []
     for b in bytes:
         for i in range(8):
-            bits.append(min(testbit(b,i), 1))
+            bits.append(testbit(b,i))
     prbits = [b ^ random.getrandbits(1) for b in bits]
 
     # copying the input audio's properties over to the output
