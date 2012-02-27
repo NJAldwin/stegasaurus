@@ -35,5 +35,5 @@ if [ -z "$DIFFOUT" ]
 then
      echo "The files are the same"
 else
-     echo $DIFFOUT
+     echo -e "$DIFFOUT"
 fi
