@@ -21,17 +21,18 @@ from numpy import int16
 from bits import testbit, setbit
 
 # Constants
-DECODE = "decode"
+DECODE = "decode" # Operation mode of the software
 ENCODE = "encode"
-WAV = "wav"
-RATE = 44100
-SEED = "our cool awesome seed"
+WAV = "wav" # input type
+RATE = 44100 # Sample rate (expected)
+SEED = "our cool awesome seed" # Random number generator seed
 FRAMEDIST = 7
-LOW_MASK = 0x0000FFFF
+LOW_MASK = 0x0000FFFF # Used for masking off the upper and lower segments of bytes
 HIGH_MASK = 0xFFFF0000
-UNIQUE_LEFT = -42
+UNIQUE_LEFT = -42 # Used when checking for steganographic payload
 UNIQUE_RIGHT = 42
-LAMEPATH = "/course/cs4500wc/Lame/src/lame-3.98.4/frontend/lame"
+# FIXME: Make sure this path reflects the machine you're testing on
+LAMEPATH = "/course/cs4500wc/Lame/src/lame-3.98.4/frontend/lame" # Path to LAME executable
 
 def usage():
     """ Prints program usage and exits """
@@ -55,6 +56,7 @@ def main():
 
     if len(mode) < 1:
         # if the mode isn't there, print the usage
+        print "ERROR: No mode specified!"
         usage()
 
     # get the mode the user indicated
@@ -72,6 +74,7 @@ def main():
     if len(opts) < nargs:
         usage()
     if not checkformat(opts[0], WAV, RATE):
+        print "ERROR: File is of unexpected type!"
         usage()
 
     random.seed(SEED)   # seeds the random generator
@@ -82,6 +85,7 @@ def main():
 
 def encode(opts):
     """ Encodes data into a file """
+    print "Encoding..."
     file1, file2, file3  = opts # pull the individual values out of the opts array
 
     if not os.path.isfile(file2): # If the carrier doesn't exist, show the usage
@@ -148,6 +152,7 @@ def encode(opts):
 
 def decode(opts):
     """ Decode data from a file """
+    print "Decoding..."
     file4, file5 = opts
     inaudio = wave.open(file4, 'rb')
     outmsg = open(file5, 'wb')
