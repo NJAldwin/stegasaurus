@@ -14,7 +14,7 @@
 # ==== Usage ====
 # see README
 
-import sndhdr, wave, mimetypes, getopt, sys, os, random
+import sndhdr, wave, mimetypes, getopt, sys, os, random, subprocess
 from struct import unpack, pack
 from numpy.fft import fft, ifft
 from numpy import int16
@@ -31,6 +31,7 @@ LOW_MASK = 0x0000FFFF
 HIGH_MASK = 0xFFFF0000
 UNIQUE_LEFT = -42
 UNIQUE_RIGHT = 42
+LAMEPATH = "/course/cs4500wc/Lame/src/lame-3.98.4/frontend/lame"
 
 def usage():
     """ Prints program usage and exits """
@@ -60,6 +61,13 @@ def main():
     mode = mode[0][0].strip('-')
     nargs = 3 if mode == ENCODE else 2
 
+    # If the file has an mp3 extension
+    if opts[0][-3:] == "mp3":
+        # Convert it to wav
+        convertmp3(opts[0])
+        # change the filename's extension in the options array
+        opts[0] = opts[0][:-4]+".wav"
+
     # check for appropriate number of arguments
     if len(opts) < nargs:
         usage()
@@ -74,7 +82,7 @@ def main():
 
 def encode(opts):
     """ Encodes data into a file """
-    file1, file2, file3  = opts # pull the individual values out of the opts tuple
+    file1, file2, file3  = opts # pull the individual values out of the opts array
 
     if not os.path.isfile(file2): # If the carrier doesn't exist, show the usage
         usage()
@@ -93,7 +101,6 @@ def encode(opts):
     outaudio = wave.open(file3, 'wb')
     outaudio.setparams(inaudio.getparams())
 
-    # note: use fft later for mp3 compatibility
     # Find the total number of frames in the input file
     totalframes = inaudio.getnframes()
     # The end of the file occurs at the end of the prbits array if it is shorter than the 
@@ -105,7 +112,7 @@ def encode(opts):
 
     # skip frames for unique marking & length (first 2 frames hold metadata)
     inaudio.readframes(2)
-    
+
     # Put the metadata into the first two frames
     # The first frame's two channels sum to 0, indicating there is data stored in the file
     # The second frame's two channels contain the length of the steganographic payload
@@ -116,17 +123,18 @@ def encode(opts):
     outframe = pack("<hhHH", UNIQUE_LEFT, UNIQUE_RIGHT, endlo, endhi)
     outaudio.writeframes(outframe)
 
+    # TODO: Convert this process to spread-spectrum
     # Calculate the distance to the end of the file
     dist = (totalframes / end) - 2
     # For each frame to the end of the file
     for i in range(end):
         frame = unpack("<hh", inaudio.readframes(1))
-	freqs = fft(frame)
+        freqs = fft(frame)
         side = (i % 2) == 0 # alternate channels
         freqs[0] = prbits[i] if side else freqs[0]
         freqs[1] = freqs[1] if side else prbits[i]
-	newframes = ifft(freqs)
-	#print "%s:%s:%s" % (frame,prbits[i], newframes)
+        newframes = ifft(freqs)
+        #print "%s:%s:%s" % (frame,prbits[i],newframes)
         outframe = pack("<hh", newframes[0], newframes[1])
         outaudio.writeframes(outframe)
         frames = bytearray(inaudio.readframes(dist))
@@ -147,7 +155,7 @@ def decode(opts):
     # check unique
     check = unpack("<hh", inaudio.readframes(1))
     if not check[0]==UNIQUE_LEFT and not check[1]==UNIQUE_RIGHT and not check[0]+check[1]==0:
-        print >>sys.stderr, "No steganographic payload found."
+        print >>sys.stderr, "ERROR: No steganographic payload found."
         outmsg.close()
         usage()
 
@@ -160,7 +168,7 @@ def decode(opts):
     while inaudio.tell() < totalframes and len(bits) < end:
         frame = unpack("<hh", inaudio.readframes(1))
         side = (i % 2) == 0
-	freqs = fft(frame)
+        freqs = fft(frame)
         bits.append(freqs[0 if side else 1].astype(int16))
         inaudio.readframes(dist)        # skip frames
         i += 1
@@ -190,6 +198,18 @@ def checkformat(filename, expectedtype, expectedrate):
 
     ftype, rate, channels, frames, bps = header
     return ftype==expectedtype and rate==expectedrate
+
+def convertmp3(filename):
+    if not os.path.isfile(filename):
+        raise IOError('File not found')
+
+    basename = filename[:-4]
+    inputname = filename
+    outputname = basename + ".wav"
+
+    print "Converting "+inputname+" to "+outputname+"..."
+
+    subprocess.call([LAMEPATH, "--decode", inputname, outputname])
 
 if __name__ == '__main__':
     main()
