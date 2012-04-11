@@ -14,7 +14,7 @@
 # ==== Usage ====
 # see README
 
-import getopt, sys
+import getopt, sys, os
 from audioformat import checkformat, convertmp3
 from engine import encode, decode
 
@@ -38,6 +38,35 @@ file4 → is input audio with steganography; i.e., file3
 file5 → is output message file"""
     exit()
 
+def paramcheck(mode,opts):
+    # checks if a mode has been indicated 
+    if not mode:
+        print >>sys.stderr, "ERROR: No mode specified!"
+        usage()
+
+    mode = mode[0][0].strip('-')            # clean up the mode 
+    nargs = 3 if mode == ENCODE else 2      # appropriate # of args that should follow
+
+    # check for appropriate number of arguments
+    if len(opts) < nargs:
+        usage()
+
+    # check that the file to encode/decode is an existing file on the system
+    if not os.path.isfile(opts[0]):
+        print >>sys.stderr, 'ERROR: Input audio file %s does not exist!' % opts[0]
+        exit()
+
+    # convert input file to wav if it's an mp3, change filename in opts array 
+    if opts[0][-3:] == "mp3":
+        opts[0] = convertmp3(opts[0])
+
+    # double check that the file is a correctly formatted audio file
+    if not checkformat(opts[0], WAV, RATE):
+        print >>sys.stderr, "ERROR: File is of unexpected type!"
+        exit()
+
+    return mode, opts
+
 def main():
     """ Main operations """
     # Attempt to get the options the user provided
@@ -47,27 +76,7 @@ def main():
         # if the command is improperly formed, print the usage
         usage()
 
-    if len(mode) < 1:
-        # if the mode isn't there, print the usage
-        print >>sys.stderr, "ERROR: No mode specified!"
-        usage()
-
-    # get the mode the user indicated
-    mode = mode[0][0].strip('-')
-    nargs = 3 if mode == ENCODE else 2
-
-    # check for appropriate number of arguments
-    if len(opts) < nargs:
-        usage()
-
-    # If the file has an mp3 extension
-    if opts[0][-3:] == "mp3":
-        # convert it to wav and change the filename in the options array
-        opts[0] = convertmp3(opts[0])
-
-    if not checkformat(opts[0], WAV, RATE):
-        print >>sys.stderr, "ERROR: File is of unexpected type!"
-        exit()
+    mode, opts = paramcheck(mode,opts)    
 
     if mode == ENCODE:
         encode(opts) # calls encode on the arguments provided

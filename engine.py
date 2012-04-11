@@ -42,9 +42,13 @@ def encode(opts):
 
     # Find the total number of frames in the input file
     totalframes = inaudio.getnframes()
+
     # The end of the file occurs at the end of the prbits array if it is shorter than the
     # length of the original file. Otherwise, it is at the end of the original file.
     end = len(prbits) if len(prbits) * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
+
+    # Calculate the distance to the end of the file
+    dist = (totalframes / end) - 2
 
     # skip first 2 frames (contains metadata) for unique marking & length
     inaudio.readframes(2)
@@ -52,8 +56,6 @@ def encode(opts):
     outaudio.writeframes(outframe)
 
     # TODO: Convert this process to spread-spectrum
-    # Calculate the distance to the end of the file
-    dist = (totalframes / end) - 2
     # For each frame to the end of the file
     for i in range(end):
         # grab current input audio frame
@@ -63,9 +65,9 @@ def encode(opts):
         freqs[0] = prbits[i] if side else freqs[0]
         freqs[1] = freqs[1] if side else prbits[i]
 
+        # write new frame for output audio
         newframes = ifft(freqs)
         #print "%s:%s:%s" % (frame,prbits[i],newframes)
-        # write new frame for output audio
         outframe = pack("<hh", newframes[0], newframes[1])
         outaudio.writeframes(outframe)
 
@@ -104,6 +106,7 @@ def decode(opts):
     """ Decode data from a file """
     print "Decoding..."
     file4, file5 = opts
+
     inaudio = wave.open(file4, 'rb')
     outmsg = open(file5, 'wb')
 
