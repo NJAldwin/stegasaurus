@@ -26,4 +26,4 @@ def convertmp3(filename):
 
     subprocess.call([LAMEPATH, "--decode", inputname, outputname])
 
-
+    return outputname

@@ -14,7 +14,7 @@
 # ==== Usage ====
 # see README
 
-import getopt, sys, random
+import getopt, sys
 from audioformat import checkformat, convertmp3
 from engine import encode, decode
 
@@ -23,7 +23,6 @@ DECODE = "decode"               # Operation mode of the software
 ENCODE = "encode"
 WAV = "wav"                     # input type
 RATE = 44100                    # Sample rate (expected)
-SEED = "our cool awesome seed"  # Random number generator seed
 # FIXME: Make sure this path reflects the machine you're testing on
 # This isn't used anywhere at the moment...
 LAMEPATH = "/course/cs4500wc/Lame/src/lame-3.98.4/frontend/lame" # Path to LAME executable
@@ -50,28 +49,26 @@ def main():
 
     if len(mode) < 1:
         # if the mode isn't there, print the usage
-        print "ERROR: No mode specified!"
+        print >>sys.stderr, "ERROR: No mode specified!"
         usage()
 
     # get the mode the user indicated
     mode = mode[0][0].strip('-')
     nargs = 3 if mode == ENCODE else 2
 
-    # If the file has an mp3 extension
-    if opts[0][-3:] == "mp3":
-        # Convert it to wav
-        convertmp3(opts[0])
-        # change the filename's extension in the options array
-        opts[0] = opts[0][:-4]+".wav"
-
     # check for appropriate number of arguments
     if len(opts) < nargs:
         usage()
-    if not checkformat(opts[0], WAV, RATE):
-        print "ERROR: File is of unexpected type!"
-        usage()
 
-    random.seed(SEED)   # seeds the random generator
+    # If the file has an mp3 extension
+    if opts[0][-3:] == "mp3":
+        # convert it to wav and change the filename in the options array
+        opts[0] = convertmp3(opts[0])
+
+    if not checkformat(opts[0], WAV, RATE):
+        print >>sys.stderr, "ERROR: File is of unexpected type!"
+        exit()
+
     if mode == ENCODE:
         encode(opts) # calls encode on the arguments provided
     else:
