@@ -5,6 +5,7 @@ from struct import unpack, pack
 from numpy.fft import rfft, irfft
 from numpy import int16
 from bits import testbit, setbit
+from math import floor
 
 # Constants
 SEED = "our cool awesome seed"  # random number generator seed
@@ -64,23 +65,26 @@ def encode(opts):
         # grab current input audio frame
         #frame = unpack("<hh", inaudio.readframes(1))
         chunk = unpack('<' + 'h'*2*CHUNK_SIZE, inaudio.readframes(CHUNK_SIZE))
-        left = [ chunk[i] for i in range(0,len(chunk),2) ]
-        right = [ chunk[i] for i in range(1,len(chunk),2) ]
+        left = [ chunk[j] for j in range(0,len(chunk),2) ]
+        right = [ chunk[j] for j in range(1,len(chunk),2) ]
         
         #freqs = fft(frame)
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
         bucket = len(left_freqs)/2 + 1
-        left_freqs[bucket] = left_freqs[bucket-1] + (-1 if prbits[i] else 0)
+        if prbits[i]:
+            left_freqs[bucket] = left_freqs[bucket-1] - 30
+        else:
+            left_freqs[bucket] = left_freqs[bucket-1]
 
         # write new frame for output audio
         new_left = irfft(left_freqs)
         new_right = irfft(right_freqs)
         outframe = []
-        for i in range(len(new_left)):
-            outframe += [ new_left[i] ]
-            outframe += [ new_right[i] ]
+        for j in range(len(new_left)):
+            outframe += [ new_left[j] ]
+            outframe += [ new_right[j] ]
         #print "%s:%s:%s" % (frame,prbits[i],newframes)
         outaudio.writeframes(pack('<' + 'h'*2*CHUNK_SIZE, *outframe))
 
@@ -129,16 +133,15 @@ def decode(opts):
     bits = []
     for i in range(end): # inaudio.tell() < totalframes and len(bits) < end:
         chunk = unpack('<' + 'h'*2*CHUNK_SIZE, inaudio.readframes(CHUNK_SIZE))
-        left = [ chunk[i] for i in range(0,len(chunk),2) ]
-        right = [ chunk[i] for i in range(1,len(chunk),2) ]
+        left = [ chunk[j] for j in range(0,len(chunk),2) ]
+        right = [ chunk[j] for j in range(1,len(chunk),2) ]
         
         #freqs = fft(frame)
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
         bucket = len(left_freqs)/2 + 1
-        bit = 0 if left_freqs[bucket-1] - left_freqs[bucket] == 0 else 1
-#print left_freqs[bucket-1], left_freqs[bucket]
+        bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
 
         bits.append(bit)
     inaudio.close()
