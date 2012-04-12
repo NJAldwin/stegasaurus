@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import wave, mimetypes, os, random, sys
-from struct import unpack, pack
+from struct import unpack, pack, calcsize
 from numpy.fft import rfft, irfft
 from numpy import int16
 from bits import testbit, setbit
@@ -64,7 +64,11 @@ def encode(opts):
     for i in range(end):
         # grab current input audio frame
         #frame = unpack("<hh", inaudio.readframes(1))
-        chunk = unpack('<' + 'h'*2*CHUNK_SIZE, inaudio.readframes(CHUNK_SIZE))
+        frames = inaudio.readframes(CHUNK_SIZE)
+        frames = inaudio.readframes(CHUNK_SIZE)
+        structsize = CHUNK_SIZE*2
+        print structsize
+        chunk = unpack('<' + 'h'*structsize, frames)
         left = [ chunk[j] for j in range(0,len(chunk),2) ]
         right = [ chunk[j] for j in range(1,len(chunk),2) ]
         
@@ -86,7 +90,7 @@ def encode(opts):
             outframe += [ new_left[j] ]
             outframe += [ new_right[j] ]
         #print "%s:%s:%s" % (frame,prbits[i],newframes)
-        outaudio.writeframes(pack('<' + 'h'*2*CHUNK_SIZE, *outframe))
+        outaudio.writeframes(pack('<' + 'h'*structsize, *outframe))
 
     outaudio.close()
     inaudio.close()
@@ -132,7 +136,13 @@ def decode(opts):
     dist = (totalframes / end) - 2
     bits = []
     for i in range(end): # inaudio.tell() < totalframes and len(bits) < end:
-        chunk = unpack('<' + 'h'*2*CHUNK_SIZE, inaudio.readframes(CHUNK_SIZE))
+        frames = inaudio.readframes(CHUNK_SIZE)
+        structsize = CHUNK_SIZE*2
+        format = '<' + 'h'*structsize
+        if not calcsize(format) == structsize:
+            structsize *= 2
+        print structsize
+        chunk = unpack(format, frames)
         left = [ chunk[j] for j in range(0,len(chunk),2) ]
         right = [ chunk[j] for j in range(1,len(chunk),2) ]
         
