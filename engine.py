@@ -2,7 +2,7 @@
 
 import wave, mimetypes, os, random, sys
 from struct import unpack, pack
-from numpy.fft import fft, ifft
+from numpy.fft import rfft, irfft
 from numpy import int16
 from bits import testbit, setbit
 
@@ -13,6 +13,7 @@ LOW_MASK = 0x0000FFFF   # used for masking off the upper and lower segments of b
 HIGH_MASK = 0xFFFF0000
 UNIQUE_LEFT = -42       # used when checking for steganographic payload
 UNIQUE_RIGHT = 42
+CHUNK_SIZE = 64
 
 random.seed(SEED)       # seeds the random generator
 
@@ -51,31 +52,35 @@ def encode(opts):
     dist = (totalframes / end) - 2
 
     # skip first 2 frames (contains metadata) for unique marking & length
-    inaudio.readframes(2)
-    outframe = markunique(end) 
-    outaudio.writeframes(outframe)
+    #inaudio.readframes(2)
+    #outframe = markunique(end) 
+    #outaudio.writeframes(outframe)
 
     # TODO: Convert this process to spread-spectrum
     # For each frame to the end of the file
     for i in range(end):
         # grab current input audio frame
-        frame = unpack("<hh", inaudio.readframes(1))
-        freqs = fft(frame)
-        side = (i % 2) == 0 # alternate channels
-        freqs[0] = prbits[i] if side else freqs[0]
-        freqs[1] = freqs[1] if side else prbits[i]
+        #frame = unpack("<hh", inaudio.readframes(1))
+        chunk = unpack('<' + 'h'*2*CHUNK_SIZE, inaudio.readframes(CHUNK_SIZE))
+        left = [ chunk[i] for i in range(0,len(chunk),2) ]
+        right = [ chunk[i] for i in range(1,len(chunk),2) ]
+        
+        #freqs = fft(frame)
+        left_freqs = rfft(left)
+        right_freqs = rfft(right)
+
+        bucket = len(left_freqs)/2 + 1
+        left_freqs[bucket] = left_freqs[bucket-1] + (-1 if prbits[i] else 0)
 
         # write new frame for output audio
-        newframes = ifft(freqs)
+        new_left = irfft(left_freqs)
+        new_right = irfft(right_freqs)
+        outframe = []
+        for i in range(len(new_left)):
+            outframe += [ new_left[i] ]
+            outframe += [ new_right[i] ]
         #print "%s:%s:%s" % (frame,prbits[i],newframes)
-        outframe = pack("<hh", newframes[0], newframes[1])
-        outaudio.writeframes(outframe)
-
-        frames = bytearray(inaudio.readframes(dist))
-        outaudio.writeframes(frames)
-
-    frames = bytearray(inaudio.readframes(totalframes))
-    outaudio.writeframes(frames)
+        outaudio.writeframes(pack('<' + 'h'*2*CHUNK_SIZE, *outframe))
 
     outaudio.close()
     inaudio.close()
