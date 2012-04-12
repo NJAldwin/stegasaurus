@@ -9,8 +9,10 @@ from bits import testbit, setbit
 # Constants
 SEED = "our cool awesome seed"  # random number generator seed
 FRAMEDIST = 7
-LOW_MASK = 0x0000FFFF   # used for masking off the upper and lower segments of bytes
-HIGH_MASK = 0xFFFF0000
+LOW_LOW_MASK = 0x000000FF   # used for masking off the upper and lower segments of bytes
+HIGH_LOW_MASK = 0x00FF0000
+LOW_HIGH_MASK = 0x0000FF00   # used for masking off the upper and lower segments of bytes
+HIGH_HIGHT_MASK = 0xFF000000
 UNIQUE_LEFT = -42       # used when checking for steganographic payload
 UNIQUE_RIGHT = 42
 CHUNK_SIZE = 64
@@ -52,9 +54,9 @@ def encode(opts):
     dist = (totalframes / end) - 2
 
     # skip first 2 frames (contains metadata) for unique marking & length
-    #inaudio.readframes(2)
-    #outframe = markunique(end) 
-    #outaudio.writeframes(outframe)
+    inaudio.readframes(2)
+    outframe = markunique(end) 
+    outaudio.writeframes(outframe)
 
     # TODO: Convert this process to spread-spectrum
     # For each frame to the end of the file
@@ -88,8 +90,10 @@ def encode(opts):
 def markunique(end):
     """ Adds unique marking and length """
     # Separate the end of the file into the upper and lower 16 bits.
-    endlo = end & LOW_MASK
-    endhi = (end & HIGH_MASK) >> 16
+    endlolo = end & LOW_LOW_MASK
+    endlohi = (end & LOW_HIGH_MASK) >> 8
+    endhilo = (end & HIGH_LOW_MASK) >> 16
+    endhihi = (end & HIGH_HIGHT_MASK) >> 24
 
     # Put the metadata into the first two frames
     # The first frame's two channels sum to 0, indicating there is data stored in the file
@@ -98,7 +102,7 @@ def markunique(end):
     # < : little-endian
     # h : short
     # H : unsigned short
-    return pack("<hhHH", UNIQUE_LEFT, UNIQUE_RIGHT, endlo, endhi)
+    return pack("<hhhh", endlolo, endlohi, endhilo, endhihi)
 
 def checkunique(mark):
     check = unpack("<hh", mark)
@@ -116,21 +120,27 @@ def decode(opts):
     outmsg = open(file5, 'wb')
 
     # check unique
-    checkunique(inaudio.readframes(1))
+    #checkunique(inaudio.readframes(1))
 
-    frame = unpack("<HH", inaudio.readframes(1))
+    frame = unpack("<hhhh", inaudio.readframes(2))
     totalframes = inaudio.getnframes()
-    end = frame[0] | (frame[1] << 16)
+    end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
     dist = (totalframes / end) - 2
     bits = []
-    i=0
-    while inaudio.tell() < totalframes and len(bits) < end:
-        frame = unpack("<hh", inaudio.readframes(1))
-        side = (i % 2) == 0
-        freqs = fft(frame)
-        bits.append(freqs[0 if side else 1].astype(int16))
-        inaudio.readframes(dist)        # skip frames
-        i += 1
+    for i in range(end): # inaudio.tell() < totalframes and len(bits) < end:
+        chunk = unpack('<' + 'h'*2*CHUNK_SIZE, inaudio.readframes(CHUNK_SIZE))
+        left = [ chunk[i] for i in range(0,len(chunk),2) ]
+        right = [ chunk[i] for i in range(1,len(chunk),2) ]
+        
+        #freqs = fft(frame)
+        left_freqs = rfft(left)
+        right_freqs = rfft(right)
+
+        bucket = len(left_freqs)/2 + 1
+        bit = 0 if left_freqs[bucket-1] - left_freqs[bucket] == 0 else 1
+#print left_freqs[bucket-1], left_freqs[bucket]
+
+        bits.append(bit)
     inaudio.close()
 
     debits = [b ^ random.getrandbits(1) for b in bits]
