@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import wave, mimetypes, os, random, sys
+from audioformat import convertformat
 from struct import unpack, pack, calcsize
 from numpy.fft import rfft, irfft
 from numpy import int16
@@ -24,6 +25,7 @@ def encode(opts):
     """ Encodes data into a file """
     print "Encoding..."
     file1, file2, file3 = opts  # pull the individual values out of the opts array
+    temp_outfile = file3[:-3]+'wav'
 
     # If the carrier doesn't exist, show the usage
     if not os.path.isfile(file2):
@@ -41,7 +43,7 @@ def encode(opts):
 
     # copying the input audio's properties over to the output
     inaudio = wave.open(file1, 'rb')
-    outaudio = wave.open(file3, 'wb')
+    outaudio = wave.open(temp_outfile, 'wb')
     outaudio.setparams(inaudio.getparams())
 
     # Find the total number of frames in the input file
@@ -88,6 +90,9 @@ def encode(opts):
 
     outaudio.close()
     inaudio.close()
+
+    if file3[-3:] == 'mp3':
+        convertformat(temp_outfile,'mp3')
 
 def pack_payload_length(end):
     """ Adds unique marking and length """

@@ -15,13 +15,14 @@
 # see README
 
 import getopt, sys, os
-from audioformat import checkformat, convertmp3
+from audioformat import checkformat, convertformat
 from engine import encode, decode
 
 # Constants
 DECODE = "decode"               # Operation mode of the software
 ENCODE = "encode"
 WAV = "wav"                     # input type
+MP3 = "mp3"                     # input type
 RATE = 44100                    # Sample rate (expected)
 
 def usage():
@@ -55,7 +56,7 @@ def paramcheck(mode,opts):
 
     # convert input file to wav if it's an mp3, change filename in opts array 
     if opts[0][-3:] == "mp3":
-        opts[0] = convertmp3(opts[0])
+        opts[0] = convertformat(opts[0],WAV)
 
     # double check that the file is a correctly formatted audio file
     if not checkformat(opts[0], WAV, RATE):
