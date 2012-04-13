@@ -1,6 +1,6 @@
 Group:    Stegasaurus
-Version:  0.02
-Date:     2012-3-1
+Version:  0.03
+Date:     2012-04-13
 
 ==== Group Members ====
  - Nick Aldwin <aldwin@ccs.neu.edu>
@@ -16,10 +16,11 @@ Where <carrier> is the filename of the WAV file you'd like to encode into, <mess
 where <decode> is the file that should have the message encoded in it and <extraction> is the desired filename for the decoded message itself.
 
 ==== Notes ====
- - Our software will convert input mp3 files to wav and embed steganographic information. The files will be left in wav format, conversion back to mp3 will be added in a future release
  - Our software relies on the Python standard library, the NumPy scientific computing suite, and the LAME audio encoder/decoder.
 
 ==== Changelog ====
+2012-04-13: (Version 0.03)
+  - Improved embedding process such that we can do from mp3/wav to mp3/wav and resulting files are more steganographic
 2012-03-01: Rapid prototype mark 2 for Assignment 5 (Version 0.02)
   - Added mp3 conversion
   - Converted embedding process to FFT-based instead of raw PCM
