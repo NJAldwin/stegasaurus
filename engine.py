@@ -18,8 +18,12 @@ HIGH_HIGHT_MASK = 0xFF000000
 UNIQUE_LEFT = -42       # used when checking for steganographic payload
 UNIQUE_RIGHT = 42
 CHUNK_SIZE = 64
+BUCKETS_TO_USE = 8
+BUCKET_OFFSET = 4
 
-random.seed(SEED)       # seeds the random generator
+def reseed():
+    """ Resets the random generator """
+    random.seed(SEED)       # seeds the random generator
 
 def encode(opts):
     """ Encodes data into a file """
@@ -33,6 +37,7 @@ def encode(opts):
         exit()
 
     # opens up the payload file and generate random bits
+    reseed()
     tohide = open(file2, 'rb').read()
     bytes = bytearray(tohide)
     bits = []
@@ -58,8 +63,9 @@ def encode(opts):
     outframe = pack_payload_length(end) 
     outaudio.writeframes(outframe)
 
-    # For each frame to the end of the file
-    for i in range(end):
+    reseed()
+    # For each 8 bits to encode
+    for i in range(0, end, BUCKETS_TO_USE):
         # grab current input audio frame
         frames = inaudio.readframes(CHUNK_SIZE)
         structsize = CHUNK_SIZE*2
@@ -70,11 +76,13 @@ def encode(opts):
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
-        bucket = len(left_freqs)/2 + 1
-        if prbits[i]:
-            left_freqs[bucket] = left_freqs[bucket-1] - 30
-        else:
-            left_freqs[bucket] = left_freqs[bucket-1]
+        fbucket = len(left_freqs)/2 + 1
+        for j in range(BUCKETS_TO_USE):
+            bucket = fbucket + j*BUCKET_OFFSET
+            if prbits[i+j]:
+                left_freqs[bucket] = left_freqs[bucket-1] - 30
+            else:
+                left_freqs[bucket] = left_freqs[bucket-1]
 
         # write new frame for output audio
         new_left = irfft(left_freqs)
