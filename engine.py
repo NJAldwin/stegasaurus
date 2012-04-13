@@ -18,8 +18,8 @@ HIGH_HIGHT_MASK = 0xFF000000
 UNIQUE_LEFT = -42       # used when checking for steganographic payload
 UNIQUE_RIGHT = 42
 CHUNK_SIZE = 64
-BUCKETS_TO_USE = 8
-BUCKET_OFFSET = 4
+BUCKETS_TO_USE = 6
+BUCKET_OFFSET = 3
 
 def reseed():
     """ Resets the random generator """
@@ -54,9 +54,10 @@ def encode(opts):
     # Find the total number of frames in the input file
     totalframes = inaudio.getnframes()
 
+    lenprbits = len(prbits)
     # The end of the file occurs at the end of the prbits array if it is shorter than the
     # length of the original file. Otherwise, it is at the end of the original file.
-    end = len(prbits) if len(prbits) * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
+    end = lenprbits if lenprbits * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
 
     # skip first 2 frames (contains metadata) for unique marking & length
     inaudio.readframes(2)
@@ -64,7 +65,7 @@ def encode(opts):
     outaudio.writeframes(outframe)
 
     reseed()
-    # For each 8 bits to encode
+    # For each 6 bits to encode
     for i in range(0, end, BUCKETS_TO_USE):
         # grab current input audio frame
         frames = inaudio.readframes(CHUNK_SIZE)
@@ -79,10 +80,11 @@ def encode(opts):
         fbucket = len(left_freqs)/2 + 1
         for j in range(BUCKETS_TO_USE):
             bucket = fbucket + j*BUCKET_OFFSET
-            if prbits[i+j]:
-                left_freqs[bucket] = left_freqs[bucket-1] - 30
-            else:
-                left_freqs[bucket] = left_freqs[bucket-1]
+            if i+j < lenprbits:
+                if prbits[i+j]:
+                    left_freqs[bucket] = left_freqs[bucket-1] - 30
+                else:
+                    left_freqs[bucket] = left_freqs[bucket-1]
 
         # write new frame for output audio
         new_left = irfft(left_freqs)
@@ -134,7 +136,7 @@ def decode(opts):
     dist = (totalframes / end) - 2
 
     bits = []
-    for i in range(end):
+    for i in range(0, end, BUCKETS_TO_USE):
         frames = inaudio.readframes(CHUNK_SIZE)
         structsize = CHUNK_SIZE*2
         format = '<' + 'h'*structsize
@@ -147,10 +149,11 @@ def decode(opts):
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
-        bucket = len(left_freqs)/2 + 1
-        bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
-
-        bits.append(bit)
+        fbucket = len(left_freqs)/2 + 1
+        for j in range(BUCKETS_TO_USE):
+            bucket = fbucket + j*BUCKET_OFFSET
+            bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
+            bits.append(bit)
     inaudio.close()
 
     debits = [b ^ random.getrandbits(1) for b in bits]
