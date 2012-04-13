@@ -51,28 +51,20 @@ def encode(opts):
     # length of the original file. Otherwise, it is at the end of the original file.
     end = len(prbits) if len(prbits) * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
 
-    # Calculate the distance to the end of the file
-    dist = (totalframes / end) - 2
-
     # skip first 2 frames (contains metadata) for unique marking & length
     inaudio.readframes(2)
-    outframe = markunique(end) 
+    outframe = pack_payload_length(end) 
     outaudio.writeframes(outframe)
 
-    # TODO: Convert this process to spread-spectrum
     # For each frame to the end of the file
     for i in range(end):
         # grab current input audio frame
-        #frame = unpack("<hh", inaudio.readframes(1))
-        frames = inaudio.readframes(CHUNK_SIZE)
         frames = inaudio.readframes(CHUNK_SIZE)
         structsize = CHUNK_SIZE*2
-        print structsize
         chunk = unpack('<' + 'h'*structsize, frames)
         left = [ chunk[j] for j in range(0,len(chunk),2) ]
         right = [ chunk[j] for j in range(1,len(chunk),2) ]
         
-        #freqs = fft(frame)
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
@@ -87,15 +79,17 @@ def encode(opts):
         new_right = irfft(right_freqs)
         outframe = []
         for j in range(len(new_left)):
-            outframe += [ new_left[j] ]
-            outframe += [ new_right[j] ]
-        #print "%s:%s:%s" % (frame,prbits[i],newframes)
+            outframe.append(new_left[j])
+            outframe.append(new_right[j])
         outaudio.writeframes(pack('<' + 'h'*structsize, *outframe))
+
+    frames = bytearray(inaudio.readframes(totalframes))
+    outaudio.writeframes(frames)
 
     outaudio.close()
     inaudio.close()
 
-def markunique(end):
+def pack_payload_length(end):
     """ Adds unique marking and length """
     # Separate the end of the file into the upper and lower 16 bits.
     endlolo = end & LOW_LOW_MASK
@@ -112,13 +106,6 @@ def markunique(end):
     # H : unsigned short
     return pack("<hhhh", endlolo, endlohi, endhilo, endhihi)
 
-def checkunique(mark):
-    check = unpack("<hh", mark)
-    if not check[0]==UNIQUE_LEFT and not check[1]==UNIQUE_RIGHT and not check[0]+check[1]==0:
-        print >>sys.stderr, "ERROR: No steganographic payload found."
-        outmsg.close()
-        exit()
-
 def decode(opts):
     """ Decode data from a file """
     print "Decoding..."
@@ -127,26 +114,23 @@ def decode(opts):
     inaudio = wave.open(file4, 'rb')
     outmsg = open(file5, 'wb')
 
-    # check unique
-    #checkunique(inaudio.readframes(1))
-
-    frame = unpack("<hhhh", inaudio.readframes(2))
     totalframes = inaudio.getnframes()
+
+    frame = unpack('<hhhh', inaudio.readframes(2))
     end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
     dist = (totalframes / end) - 2
+
     bits = []
-    for i in range(end): # inaudio.tell() < totalframes and len(bits) < end:
+    for i in range(end):
         frames = inaudio.readframes(CHUNK_SIZE)
         structsize = CHUNK_SIZE*2
         format = '<' + 'h'*structsize
         if not calcsize(format) == structsize:
             structsize *= 2
-        print structsize
         chunk = unpack(format, frames)
         left = [ chunk[j] for j in range(0,len(chunk),2) ]
         right = [ chunk[j] for j in range(1,len(chunk),2) ]
         
-        #freqs = fft(frame)
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
