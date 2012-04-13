@@ -23,9 +23,6 @@ DECODE = "decode"               # Operation mode of the software
 ENCODE = "encode"
 WAV = "wav"                     # input type
 RATE = 44100                    # Sample rate (expected)
-# FIXME: Make sure this path reflects the machine you're testing on
-# This isn't used anywhere at the moment...
-LAMEPATH = "/course/cs4500wc/Lame/src/lame-3.98.4/frontend/lame" # Path to LAME executable
 
 def usage():
     """ Prints program usage and exits """
