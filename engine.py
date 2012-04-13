@@ -151,11 +151,13 @@ def decode(opts):
 
         fbucket = len(left_freqs)/2 + 1
         for j in range(BUCKETS_TO_USE):
-            bucket = fbucket + j*BUCKET_OFFSET
-            bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
-            bits.append(bit)
+            if len(bits) < end:
+                bucket = fbucket + j*BUCKET_OFFSET
+                bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
+                bits.append(bit)
     inaudio.close()
 
+    reseed()
     debits = [b ^ random.getrandbits(1) for b in bits]
     debytes = []
     for i in range(0,len(debits),8):
