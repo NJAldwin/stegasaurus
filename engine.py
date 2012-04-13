@@ -18,8 +18,8 @@ HIGH_HIGHT_MASK = 0xFF000000
 UNIQUE_LEFT = -42       # used when checking for steganographic payload
 UNIQUE_RIGHT = 42
 CHUNK_SIZE = 64
-BUCKETS_TO_USE = 12
-BUCKET_OFFSET = 2
+BUCKETS_TO_USE = 6
+BUCKET_OFFSET = 3
 
 def reseed():
     """ Resets the random generator """
@@ -69,7 +69,6 @@ def encode(opts):
     for i in range(0, end, BUCKETS_TO_USE):
         # grab current input audio frame
         frames = inaudio.readframes(CHUNK_SIZE)
-        #structsize = len(frames)/2
         structsize = CHUNK_SIZE*2
         chunk = unpack('<' + 'h'*structsize, frames)
         left = [ chunk[j] for j in range(0,len(chunk),2) ]
@@ -78,8 +77,7 @@ def encode(opts):
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
-        #fbucket = len(left_freqs)/2 + 1
-        fbucket = 2 
+        fbucket = len(left_freqs)/2 + 1
         for j in range(BUCKETS_TO_USE):
             bucket = fbucket + j*BUCKET_OFFSET
             if i+j < lenprbits:
@@ -140,7 +138,6 @@ def decode(opts):
     bits = []
     for i in range(0, end, BUCKETS_TO_USE):
         frames = inaudio.readframes(CHUNK_SIZE)
-	    #structsize = len(frames)/2
         structsize = CHUNK_SIZE*2
         format = '<' + 'h'*structsize
         if not calcsize(format) == structsize:
@@ -152,8 +149,7 @@ def decode(opts):
         left_freqs = rfft(left)
         right_freqs = rfft(right)
 
-	    #fbucket = len(left_freqs)/2 + 1
-        fbucket = 2
+        fbucket = len(left_freqs)/2 + 1
         for j in range(BUCKETS_TO_USE):
             if len(bits) < end:
                 bucket = fbucket + j*BUCKET_OFFSET
