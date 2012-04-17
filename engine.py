@@ -46,10 +46,43 @@ def length_to_bytes(end):
 
     return [endlolo, endlohi, endhilo, endhihi]
 
+def get_length(inaudio):
+    # find the hidden data
+    bits = []
+    for i in range(0, 64, BUCKETS_TO_USE):
+        frames = inaudio.readframes(CHUNK_SIZE)
+        left_freqs, right_freqs, structsize  = get_chan_freqs(frames)
+
+        fbucket = len(left_freqs)/3 + 1
+        for j in range(BUCKETS_TO_USE):
+            if len(bits) < 64:
+                bucket = fbucket + j*BUCKET_OFFSET
+                bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
+                bits.append(bit)
+    inaudio.close()
+
+    # translate the bits
+    reseed()
+    debits = [b ^ random.getrandbits(1) for b in bits]
+    debytes = []
+    for i in range(0,len(debits),8):
+        byte = 0
+        for j in range(8):
+            if (debits[i+j] == 1):
+                byte = setbit(byte, j)
+        debytes.append(byte)
+
+    return debytes
+
 def encode(opts):
     """ Encodes data into a file """
     print "Encoding..."
     file1, file2, file3 = opts
+
+    inaudio = wave.open(file1, 'rb')
+    temp_outfile = file3[:-3]+'wav'         # temp filename since wav is canonical form
+    outaudio = wave.open(temp_outfile, 'wb')
+    outaudio.setparams(inaudio.getparams()) # copy over input audio's properties
 
     # check if the payload file exists
     if not os.path.isfile(file2):
@@ -59,11 +92,14 @@ def encode(opts):
     bytes = bytearray(tohide)
     prbits_len = len(bytes) * 8
 
+    # Find the total number of frames in the input file
+    totalframes = inaudio.getnframes()
+
     # The end of the file occurs at the end of the prbits array if it is shorter than the
     # length of the original file. Otherwise, it is at the end of the original file.
     end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
-    
-    bytes = length_to_bytes(end) + end
+
+    bytes = bytearray(length_to_bytes(end)) + bytes
 
     # opens up the payload file and generate random bits
     reseed()
@@ -72,14 +108,6 @@ def encode(opts):
         for i in range(8):
             bits.append(testbit(b,i))
     prbits = [b ^ random.getrandbits(1) for b in bits]
-
-    inaudio = wave.open(file1, 'rb')
-    temp_outfile = file3[:-3]+'wav'         # temp filename since wav is canonical form
-    outaudio = wave.open(temp_outfile, 'wb')
-    outaudio.setparams(inaudio.getparams()) # copy over input audio's properties
-
-    # Find the total number of frames in the input file
-    totalframes = inaudio.getnframes()
 
     reseed()
     # For each 6 bits to encode
@@ -136,9 +164,12 @@ def decode(opts):
     totalframes = inaudio.getnframes()
 
     # read off metadata
-    frame = unpack('<hhhh', inaudio.readframes(2))
+    frame = get_length(inaudio)
     end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
     dist = (totalframes / end) - 2
+
+    print end
+    exit()
 
     # find the hidden data
     bits = []
