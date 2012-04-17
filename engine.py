@@ -35,21 +35,14 @@ def get_chan_freqs(frames):
 
     return rfft(left), rfft(right), structsize
 
-def pack_payload_length(end):
-    """ Adds unique marking and length """
-    # Separate the end of the file into the upper and lower 16 bits.
+def length_to_bytes(end):
+    """ Splits an int into 4 bytes """
     endlolo = end & LOW_LOW_MASK
     endlohi = (end & LOW_HIGH_MASK) >> 8
     endhilo = (end & HIGH_LOW_MASK) >> 16
     endhihi = (end & HIGH_HIGHT_MASK) >> 24
 
-    # Put the metadata into the first two frames
-    # The first frame's two channels sum to 0, indicating there is data stored in the file
-    # The second frame's two channels contain the length of the steganographic payload
-    # some pack() usage notes:
-    # < : little-endian
-    # h : short
-    return pack("<hhhh", endlolo, endlohi, endhilo, endhihi)
+    return [endlolo, endlohi, endhilo, endhihi]
 
 def encode(opts):
     """ Encodes data into a file """
@@ -62,6 +55,13 @@ def encode(opts):
         exit()
     tohide = open(file2, 'rb').read()
     bytes = bytearray(tohide)
+    prbits_len = len(bytes) * 8
+
+    # The end of the file occurs at the end of the prbits array if it is shorter than the
+    # length of the original file. Otherwise, it is at the end of the original file.
+    end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
+    
+    bytes = length_to_bytes(end) + end
 
     # opens up the payload file and generate random bits
     reseed()
@@ -70,7 +70,6 @@ def encode(opts):
         for i in range(8):
             bits.append(testbit(b,i))
     prbits = [b ^ random.getrandbits(1) for b in bits]
-    prbits_len = len(prbits)
 
     inaudio = wave.open(file1, 'rb')
     temp_outfile = file3[:-3]+'wav'         # temp filename since wav is canonical form
@@ -79,15 +78,6 @@ def encode(opts):
 
     # Find the total number of frames in the input file
     totalframes = inaudio.getnframes()
-
-    # The end of the file occurs at the end of the prbits array if it is shorter than the
-    # length of the original file. Otherwise, it is at the end of the original file.
-    end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
-
-    # skip first 2 frames (contains metadata) for unique marking & length
-    inaudio.readframes(2)
-    outframe = pack_payload_length(end) 
-    outaudio.writeframes(outframe)
 
     reseed()
     # For each 6 bits to encode
