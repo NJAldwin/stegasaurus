@@ -109,6 +109,8 @@ def encode(opts):
         for i in range(8):
             bits.append(testbit(b,i))
     prbits = [b ^ random.getrandbits(1) for b in bits]
+    print len(prbits), prbits_len
+    end = len(prbits)
 
     reseed()
     # For each 6 bits to encode
