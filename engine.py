@@ -44,22 +44,23 @@ def length_to_bytes(end):
     endhilo = (end & HIGH_LOW_MASK) >> 16
     endhihi = (end & HIGH_HIGHT_MASK) >> 24
 
-    return [endlolo, endlohi, endhilo, endhihi]
+    end = [endlolo, endlohi, endhilo, endhihi]
+    print end
+    return end
 
 def get_length(inaudio):
     # find the hidden data
     bits = []
-    for i in range(0, 64, BUCKETS_TO_USE):
+    for i in range(0, 32, BUCKETS_TO_USE):
         frames = inaudio.readframes(CHUNK_SIZE)
         left_freqs, right_freqs, structsize  = get_chan_freqs(frames)
 
         fbucket = len(left_freqs)/3 + 1
         for j in range(BUCKETS_TO_USE):
-            if len(bits) < 64:
+            if len(bits) < 32:
                 bucket = fbucket + j*BUCKET_OFFSET
                 bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
                 bits.append(bit)
-    inaudio.close()
 
     # translate the bits
     reseed()
@@ -72,6 +73,7 @@ def get_length(inaudio):
                 byte = setbit(byte, j)
         debytes.append(byte)
 
+    print debytes
     return debytes
 
 def encode(opts):
@@ -99,6 +101,7 @@ def encode(opts):
     # length of the original file. Otherwise, it is at the end of the original file.
     end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
 
+    print end
     bytes = bytearray(length_to_bytes(end)) + bytes
 
     # opens up the payload file and generate random bits
@@ -169,7 +172,6 @@ def decode(opts):
     dist = (totalframes / end) - 2
 
     print end
-    exit()
 
     # find the hidden data
     bits = []
