@@ -63,7 +63,7 @@ def get_length(inaudio):
                 bits.append(bit)
 
     # translate the bits
-    reseed()
+    #reseed()
     debits = [b ^ random.getrandbits(1) for b in bits]
     debytes = []
     for i in range(0,len(debits),8):
@@ -161,6 +161,8 @@ def decode(opts):
     print "Decoding..."
     file4, file5 = opts
 
+    reseed()
+
     inaudio = wave.open(file4, 'rb')
     outmsg = open(file5, 'wb')
 
@@ -198,7 +200,7 @@ def decode(opts):
     inaudio.close()
 
     # translate the bits
-    reseed()
+    #reseed()
     debits = [b ^ random.getrandbits(1) for b in bits]
     debytes = []
     for i in range(0,len(debits),8):
