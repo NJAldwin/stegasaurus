@@ -55,11 +55,21 @@ def get_length(inaudio):
         frames = inaudio.readframes(CHUNK_SIZE)
         left_freqs, right_freqs, structsize  = get_chan_freqs(frames)
 
-        fbucket = len(left_freqs)/3 + 1
+        fbucket = len(left_freqs)/BUCKET_DIVISIONS + 1
         for j in range(BUCKETS_TO_USE):
             if len(bits) < 32:
                 bucket = fbucket + j*BUCKET_OFFSET
-                bit = 0 if floor(left_freqs[bucket-1]) - floor(left_freqs[bucket]) <= 15 else 1
+                bitl = 0 if ceil(left_freqs[bucket-1]) - ceil(left_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
+                bitr = 0 if ceil(right_freqs[bucket-1]) - ceil(right_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
+                bit = min(bitr, bitl)
+                if(bitr==1):
+                    bit = 1
+                if(bitl!=bitr):
+                    print 'bitl and bitr differ!'
+                    print bitl
+                    print bitr
+                    print bit
+
                 bits.append(bit)
 
     # translate the bits
