@@ -40,21 +40,13 @@ def get_chan_freqs(frames):
 
     return rfft(left), rfft(right), structsize
 
-def pack_payload_length(end):
-    """ Adds unique marking and length """
-    # Separate the end of the file into the upper and lower 16 bits.
+def length_in_bytes(end):
     endlolo = end & LOW_LOW_MASK
     endlohi = (end & LOW_HIGH_MASK) >> 8
     endhilo = (end & HIGH_LOW_MASK) >> 16
     endhihi = (end & HIGH_HIGHT_MASK) >> 24
 
-    # Put the metadata into the first two frames
-    # The first frame's two channels sum to 0, indicating there is data stored in the file
-    # The second frame's two channels contain the length of the steganographic payload
-    # some pack() usage notes:
-    # < : little-endian
-    # h : short
-    return pack("<hhhh", endlolo, endlohi, endhilo, endhihi)
+    return [endlolo, endlohi, endhilo, endhihi]
 
 def encode(opts):
     """ Encodes data into a file """
@@ -68,6 +60,22 @@ def encode(opts):
     tohide = open(file2, 'rb').read()
     bytes = bytearray(tohide)
 
+    inaudio = wave.open(file1, 'rb')
+    temp_outfile = file3[:-3]+'wav'         # temp filename since wav is canonical form
+    outaudio = wave.open(temp_outfile, 'wb')
+    outaudio.setparams(inaudio.getparams()) # copy over input audio's properties
+
+    # Find the total number of frames in the input file
+    totalframes = inaudio.getnframes()
+
+    prbits_len = len(bytes) * 8
+
+    # The end of the file occurs at the end of the prbits array if it is shorter than the
+    # length of the original file. Otherwise, it is at the end of the original file.
+    end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
+
+    bytes = bytearray(length_in_bytes(end)) + bytes
+
     # opens up the payload file and generate random bits
     reseed()
     bits = []
@@ -77,22 +85,8 @@ def encode(opts):
     prbits = [b ^ random.getrandbits(1) for b in bits]
     prbits_len = len(prbits)
 
-    inaudio = wave.open(file1, 'rb')
-    temp_outfile = file3[:-3]+'wav'         # temp filename since wav is canonical form
-    outaudio = wave.open(temp_outfile, 'wb')
-    outaudio.setparams(inaudio.getparams()) # copy over input audio's properties
 
-    # Find the total number of frames in the input file
-    totalframes = inaudio.getnframes()
-
-    # The end of the file occurs at the end of the prbits array if it is shorter than the
-    # length of the original file. Otherwise, it is at the end of the original file.
     end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
-
-    # skip first 2 frames (contains metadata) for unique marking & length
-    inaudio.readframes(2)
-    outframe = pack_payload_length(end)
-    outaudio.writeframes(outframe)
 
     reseed()
     # For each 6 bits to encode
@@ -132,20 +126,8 @@ def encode(opts):
     if file3[-3:] == 'mp3':
         convertformat(temp_outfile,'mp3')
 
-def decode(opts):
-    """ Decode data from a file """
-    print "Decoding..."
-    file4, file5 = opts
-
-    inaudio = wave.open(file4, 'rb')
-    outmsg = open(file5, 'wb')
-
-    totalframes = inaudio.getnframes()
-
-    # read off metadata
-    frame = unpack('<hhhh', inaudio.readframes(2))
-    end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
-    dist = (totalframes / end) - 2
+def get_bits_in_bytes(inaudio, end):
+    reseed()
 
     # find the hidden data
     bits = []
@@ -164,10 +146,8 @@ def decode(opts):
                     bit = 1
 
                 bits.append(bit)
-    inaudio.close()
 
     # translate the bits
-    reseed()
     debits = [b ^ random.getrandbits(1) for b in bits]
     debytes = []
     for i in range(0,len(debits),8):
@@ -177,6 +157,26 @@ def decode(opts):
                 byte = setbit(byte, j)
         debytes.append(byte)
 
-    outmsg.write(bytearray(debytes))
+    return debytes
+
+def decode(opts):
+    """ Decode data from a file """
+    print "Decoding..."
+    file4, file5 = opts
+
+    inaudio = wave.open(file4, 'rb')
+    outmsg = open(file5, 'wb')
+
+    totalframes = inaudio.getnframes()
+
+    # read off metadata
+    frame = get_bits_in_bytes(inaudio, 32)
+    end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
+
+    inaudio.rewind()
+    debytes = get_bits_in_bytes(inaudio, end+32)
+    inaudio.close()
+
+    outmsg.write(bytearray(debytes[4:]))
     outmsg.close()
 

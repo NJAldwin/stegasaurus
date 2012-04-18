@@ -1,8 +1,9 @@
 #!/usr/bin/python
 import os, sndhdr, subprocess
 
-LAMEPATH = "/course/cs4500wc/Lame/src/lame-3.98.4/frontend/lame" # CCIS path to LAME executable
-#LAMEPATH = "/usr/bin/lame" # Local path to LAME executable
+# FIXME: Make sure this path reflects the machine you're working on
+LAMEPATH = "/course/cs4500wc/bin/lame" # Path to LAME executable
+#LAMEPATH = "/usr/local/bin/lame" # Path to LAME executable
 
 def checkformat(filename, expectedtype, expectedrate):
     """ Check that the file is in the expected format """
