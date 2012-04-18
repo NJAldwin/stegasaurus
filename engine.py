@@ -48,16 +48,16 @@ def length_to_bytes(end):
     print end
     return end
 
-def get_length(inaudio):
+def get_bits_in_bytes(inaudio, end):
     # find the hidden data
     bits = []
-    for i in range(0, 32, BUCKETS_TO_USE):
+    for i in range(0, end, BUCKETS_TO_USE):
         frames = inaudio.readframes(CHUNK_SIZE)
         left_freqs, right_freqs, structsize  = get_chan_freqs(frames)
 
         fbucket = len(left_freqs)/BUCKET_DIVISIONS + 1
         for j in range(BUCKETS_TO_USE):
-            if len(bits) < 32:
+            if len(bits) < end:
                 bucket = fbucket + j*BUCKET_OFFSET
                 bitl = 0 if ceil(left_freqs[bucket-1]) - ceil(left_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
                 bitr = 0 if ceil(right_freqs[bucket-1]) - ceil(right_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
@@ -83,7 +83,6 @@ def get_length(inaudio):
                 byte = setbit(byte, j)
         debytes.append(byte)
 
-    print debytes
     return debytes
 
 def encode(opts):
@@ -181,46 +180,14 @@ def decode(opts):
     totalframes = inaudio.getnframes()
 
     # read off metadata
-    frame = get_length(inaudio)
+    frame = get_bits_in_bytes(inaudio, 32)
     end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
     dist = (totalframes / end) - 2
 
     print end
+    debytes = get_bits_in_bytes(inaudio, end)
 
-    # find the hidden data
-    bits = []
-    for i in range(0, end, BUCKETS_TO_USE):
-        frames = inaudio.readframes(CHUNK_SIZE)
-        left_freqs, right_freqs, structsize  = get_chan_freqs(frames)
-
-        fbucket = len(left_freqs)/BUCKET_DIVISIONS + 1
-        for j in range(BUCKETS_TO_USE):
-            if len(bits) < end:
-                bucket = fbucket + j*BUCKET_OFFSET
-                bitl = 0 if ceil(left_freqs[bucket-1]) - ceil(left_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
-                bitr = 0 if ceil(right_freqs[bucket-1]) - ceil(right_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
-                bit = min(bitr, bitl)
-                if(bitr==1):
-                    bit = 1
-                if(bitl!=bitr):
-                    print 'bitl and bitr differ!'
-                    print bitl
-                    print bitr
-                    print bit
-
-                bits.append(bit)
     inaudio.close()
-
-    # translate the bits
-    #reseed()
-    debits = [b ^ random.getrandbits(1) for b in bits]
-    debytes = []
-    for i in range(0,len(debits),8):
-        byte = 0
-        for j in range(8):
-            if (debits[i+j] == 1):
-                byte = setbit(byte, j)
-        debytes.append(byte)
 
     outmsg.write(bytearray(debytes))
     outmsg.close()
