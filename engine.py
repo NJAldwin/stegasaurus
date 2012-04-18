@@ -84,7 +84,6 @@ def encode(opts):
 
 
     end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
-    print end
 
     reseed()
     # For each 6 bits to encode
@@ -184,7 +183,7 @@ def decode(opts):
     print end
 
     inaudio.rewind()
-    debytes = get_bits_in_bytes(inaudio, end)
+    debytes = get_bits_in_bytes(inaudio, end+32)
     inaudio.close()
 
     outmsg.write(bytearray(debytes[4:]))
