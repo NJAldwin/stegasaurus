@@ -108,12 +108,12 @@ def encode(opts):
         new_right = irfft(right_freqs)
         outframe = []
         for j in range(len(new_left)):
-            if new_left[j]>32768 or new_left[j]<-32786:
-                print('left:')
-                print(new_left[j])
-            if new_right[j]<-32768 or new_right[j]>32786:
-                print('right lower')
-                print(new_right[j])
+            #if new_left[j]>32768 or new_left[j]<-32786:
+                ##print('left:')
+                ##print(new_left[j])
+            #if new_right[j]<-32768 or new_right[j]>32786:
+                ##print('right lower')
+                ##print(new_right[j])
             outframe.append(new_left[j].astype('int16'))
             outframe.append(new_right[j].astype('int16'))
         outaudio.writeframes(pack('<' + 'h'*structsize, *outframe))
@@ -147,11 +147,9 @@ def get_bits_in_bytes(inaudio, end):
                 bit = min(bitr, bitl)
                 if(bitr==1):
                     bit = 1
-                if(bitl!=bitr):
-                    print 'bitl and bitr differ!'
-                    print bitl
-                    print bitr
-                    print bit
+                #if(bitl!=bitr):
+                    #print 'bitl and bitr differ!'
+                    #print bitl, bitr, bit
 
                 bits.append(bit)
 
@@ -180,7 +178,6 @@ def decode(opts):
     # read off metadata
     frame = get_bits_in_bytes(inaudio, 32)
     end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
-    print end
 
     inaudio.rewind()
     debytes = get_bits_in_bytes(inaudio, end+32)
