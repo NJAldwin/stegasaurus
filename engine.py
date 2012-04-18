@@ -117,12 +117,6 @@ def encode(opts):
         new_right = irfft(right_freqs)
         outframe = []
         for j in range(len(new_left)):
-            if new_left[j]>32768 or new_left[j]<-32786:
-                print('left:')
-                print(new_left[j])
-            if new_right[j]<-32768 or new_right[j]>32786:
-                print('right lower')
-                print(new_right[j])
             outframe.append(new_left[j].astype('int16'))
             outframe.append(new_right[j].astype('int16'))
         outaudio.writeframes(pack('<' + 'h'*structsize, *outframe))
@@ -163,16 +157,11 @@ def decode(opts):
         for j in range(BUCKETS_TO_USE):
             if len(bits) < end:
                 bucket = fbucket + j*BUCKET_OFFSET
-                bitl = 0 if ceil(left_freqs[bucket-1]) - ceil(left_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
-                bitr = 0 if ceil(right_freqs[bucket-1]) - ceil(right_freqs[bucket]) <= BUCKET_DIFFERENTIAL/2 else 1
+                bitl = 0 if (ceil(left_freqs[bucket-1]) - ceil(left_freqs[bucket])) <= BUCKET_DIFFERENTIAL/2 else 1
+                bitr = 0 if (ceil(right_freqs[bucket-1]) - ceil(right_freqs[bucket])) <= BUCKET_DIFFERENTIAL/2 else 1
                 bit = min(bitr, bitl)
                 if(bitr==1):
                     bit = 1
-                if(bitl!=bitr):
-                    print 'bitl and bitr differ!'
-                    print bitl
-                    print bitr
-                    print bit
 
                 bits.append(bit)
     inaudio.close()
