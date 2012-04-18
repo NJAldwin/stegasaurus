@@ -1,12 +1,15 @@
 #!/usr/bin/python
 
-import wave, mimetypes, os, random, sys
+import wave, mimetypes, os, random, sys, warnings
 from audioformat import convertformat
 from struct import unpack, pack
 from numpy.fft import rfft, irfft
 from numpy import int16
 from bits import testbit, setbit
 from math import floor, ceil
+
+# Hide warnings
+warnings.filterwarnings('ignore')
 
 # Constants
 SEED = "our cool awesome seed"  # random number generator seed
