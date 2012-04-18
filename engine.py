@@ -84,6 +84,7 @@ def encode(opts):
 
 
     end = prbits_len if prbits_len * FRAMEDIST < totalframes else (totalframes/FRAMEDIST)
+    print end
 
     reseed()
     # For each 6 bits to encode
@@ -130,6 +131,8 @@ def encode(opts):
         convertformat(temp_outfile,'mp3')
 
 def get_bits_in_bytes(inaudio, end):
+    reseed()
+
     # find the hidden data
     bits = []
     for i in range(0, end, BUCKETS_TO_USE):
@@ -163,14 +166,12 @@ def get_bits_in_bytes(inaudio, end):
                 byte = setbit(byte, j)
         debytes.append(byte)
 
-    return inaudio, debytes
+    return debytes
 
 def decode(opts):
     """ Decode data from a file """
     print "Decoding..."
     file4, file5 = opts
-
-    reseed()
 
     inaudio = wave.open(file4, 'rb')
     outmsg = open(file5, 'wb')
@@ -178,13 +179,14 @@ def decode(opts):
     totalframes = inaudio.getnframes()
 
     # read off metadata
-    inaudio, frame = get_bits_in_bytes(inaudio, 32)
+    frame = get_bits_in_bytes(inaudio, 32)
     end = frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)
     print end
 
-    inaudio, debytes = get_bits_in_bytes(inaudio, end)
+    inaudio.rewind()
+    debytes = get_bits_in_bytes(inaudio, end)
     inaudio.close()
 
-    outmsg.write(bytearray(debytes))
+    outmsg.write(bytearray(debytes[4:]))
     outmsg.close()
 
